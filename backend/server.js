@@ -182,9 +182,20 @@ async function sendWhatsAppMessage(to, message) {
     const response = await axios.post("https://api.sidobe.com/wa/v1/messages", {
       sender: SIDOBE_SENDER_NUMBER,
       to: to,
-      message: message
+      message: message,
+      api_key: SIDOBE_API_KEY,
+      apiKey: SIDOBE_API_KEY,
+      key: SIDOBE_API_KEY
     }, {
-      headers: { 'Authorization': `Bearer ${SIDOBE_API_KEY}` }
+      headers: { 
+        'Authorization': `Bearer ${SIDOBE_API_KEY}`,
+        'api-key': SIDOBE_API_KEY,
+        'API-Key': SIDOBE_API_KEY,
+        'api_key': SIDOBE_API_KEY,
+        'x-api-key': SIDOBE_API_KEY,
+        'X-API-Key': SIDOBE_API_KEY,
+        'token': SIDOBE_API_KEY
+      }
     });
     logAgent(`Pesan WA terkirim ke ${to}: "${message}"`);
     return response.data;
