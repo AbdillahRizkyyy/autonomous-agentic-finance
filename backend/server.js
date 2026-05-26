@@ -132,7 +132,26 @@ async function sendWhatsAppMessage(to, message) {
 }
 
 /**
- * 2. WEBHOOK: Menerima Aliran Data Sensor dari Android Agent (Notification, Screen, GPS)
+ * 2. HOME / API STATUS: Friendly entry point so Vercel doesn't show Cannot GET /
+ */
+app.get('/', (req, res) => {
+  res.json({
+    status: "ONLINE",
+    agent_name: "Personal Finance AI Agent Backend",
+    version: "1.5.0",
+    message: "Welcome! The autonomous finance agent backend is running successfully.",
+    endpoints: {
+      get_transactions: "/api/transactions",
+      clear_transactions: "/api/transactions/clear [POST]",
+      webhook_android_agent: "/webhook/android-agent [POST]",
+      webhook_whatsapp_gateway: "/webhook/whatsapp [POST]"
+    },
+    system_time: new Date()
+  });
+});
+
+/**
+ * 3. WEBHOOK: Menerima Aliran Data Sensor dari Android Agent (Notification, Screen, GPS)
  */
 app.post('/webhook/android-agent', async (req, res) => {
   const { type, data, timestamp } = req.body;
