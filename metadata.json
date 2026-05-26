@@ -1,0 +1,6 @@
+{
+  "name": "Finance AI Agent",
+  "description": "Autonomous Personal Finance AI Agent dengan trigger background (Notification, Accessibility, GPS) dan Bot WhatsApp WhatsApp Gateway via SIDOBE.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

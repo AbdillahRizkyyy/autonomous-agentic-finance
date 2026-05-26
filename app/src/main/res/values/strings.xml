@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Finance AI Agent</string>
+    <string name="accessibility_desc">Membaca nominal dan data transaksi keuangan secara otomatis dari layar aplikasi.</string>
+</resources>
