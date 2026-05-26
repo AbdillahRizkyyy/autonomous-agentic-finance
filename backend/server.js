@@ -179,8 +179,15 @@ async function sendWhatsAppMessage(to, message) {
     return false;
   }
   try {
+    const digits = to.replace(/\D/g, '');
+    const e164 = digits.startsWith('0')
+      ? '+62' + digits.slice(1)
+      : digits.startsWith('62')
+        ? '+' + digits
+        : '+62' + digits;
+
     const response = await axios.post("https://api.sidobe.com/wa/v1/send-message", {
-      phone: to,
+      phone: e164,
       message: message
     }, {
       headers: {
