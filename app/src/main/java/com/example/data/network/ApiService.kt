@@ -87,7 +87,7 @@ interface ApiService {
     ): Response<ResponseBody> // We will parse manually to be flexible or use simple object
 
     // 3. Direct Gemini Call (Option B: Default for Prototypes)
-    @POST("v1beta/models/gemini-3.5-flash:generateContent")
+    @POST("v1beta/models/gemini-3.1-flash-lite:generateContent")
     suspend fun callGemini(
         @Query("key") apiKey: String,
         @Body request: GeminiGenerateContentRequest

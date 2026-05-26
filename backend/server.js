@@ -136,7 +136,7 @@ async function parseTransactionWithGemini(rawText, source) {
   }
 
   try {
-    const model = ai.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = ai.getGenerativeModel({ model: "gemini-3.1-flash-lite" });
     
     const prompt = `
     Anda adalah asisten keuangan pribadi cerdas bernama "Finance AI Agent".
@@ -299,7 +299,7 @@ async function handleWhatsAppWebhook(req, res) {
         logAgent("⚠️ GEMINI_API_KEY belum dikonfigurasikan di Vercel. Menggunakan heuristic fallback untuk koreksi.");
       } else {
         try {
-          const model = ai.getGenerativeModel({ model: "gemini-2.5-flash" });
+          const model = ai.getGenerativeModel({ model: "gemini-3.1-flash-lite" });
           const result = await model.generateContent(correctionPrompt);
           const outputText = result.response.text().trim();
           corrected = JSON.parse(outputText.replace(/```json/g, '').replace(/```/g, ''));
@@ -426,6 +426,14 @@ app.post('/webhook/android-agent', async (req, res) => {
         return res.json({ status: "ignored", reason: "Not a recognized financial application" });
     }
 
+    // 3. FILTER INFORMATIONAL NOTIFICATIONS (Tanpa Angka / Nominal)
+    // Jika tidak ada angka sama sekali dalam teks, hampir dipastikan ini bukan transaksi keuangan.
+    const hasNumbers = /\d/.test(rawText);
+    if (!hasNumbers) {
+        logAgent(`Mengabaikan notifikasi informasional (tidak ada angka): "${rawText.substring(0, 40)}..."`);
+        return res.json({ status: "ignored", reason: "Informational notification, no digits found" });
+    }
+
     logAgent(`Memproses teks mentah [${normalizedType}]: "${rawText.substring(0, 50)}..."`);
     const parsed = await parseTransactionWithGemini(rawText, normalizedType.toUpperCase());
 
@@ -434,6 +442,13 @@ app.post('/webhook/android-agent', async (req, res) => {
     }
 
     if (parsed.isAmbiguous) {
+      // Jika nominal 0 setelah di-parsing, dan terdeteksi ambigu, ini kemungkinan besar Promo/Info.
+      // Jangan spam user via WhatsApp untuk menanyakan transaksi Rp 0.
+      if (parsed.nominal === 0) {
+        logAgent(`Mengabaikan notifikasi karena nominal terdeteksi Rp 0. Sangat mungkin Promo atau Info.`);
+        return res.json({ status: "ignored", reason: "Zero nominal, likely promo or info" });
+      }
+
       // Skenario Ambigu: Tanyakan ke user via WhatsApp proaktif
       logAgent(`Transaksi dari ${normalizedType} ambigu. Menanyakan klarifikasi ke user via WhatsApp.`);
       
