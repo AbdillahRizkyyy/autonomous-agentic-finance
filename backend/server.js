@@ -179,12 +179,14 @@ async function sendWhatsAppMessage(to, message) {
     return false;
   }
   try {
-    const response = await axios.post("https://api.sidobe.com/wa/v1/messages", {
-      sender: SIDOBE_SENDER_NUMBER,
-      to: to,
+    const response = await axios.post("https://api.sidobe.com/wa/v1/send-message", {
+      phone: to,
       message: message
     }, {
-      headers: { 'Authorization': `Bearer ${SIDOBE_API_KEY}` }
+      headers: {
+        'X-Secret-Key': SIDOBE_API_KEY,
+        'Content-Type': 'application/json'
+      }
     });
     logAgent(`Pesan WA terkirim ke ${to}: "${message}"`);
     return response.data;
