@@ -360,6 +360,10 @@ app.post('/api/transactions/clear', (req, res) => {
 });
 
 // Menjalankan server Node.js
-app.listen(PORT, () => {
-  console.log(`Server Personal Finance AI Agent berjalan di port ${PORT}`);
-});
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`Server Personal Finance AI Agent berjalan di port ${PORT}`);
+  });
+}
+
+module.exports = app;
