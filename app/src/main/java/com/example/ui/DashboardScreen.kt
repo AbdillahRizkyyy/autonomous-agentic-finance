@@ -316,6 +316,110 @@ fun DashboardScreen(
                 }
             }
 
+            // PANDUAN SOLUSI BANK & WA REAL (FAQ / Help Guide Card)
+            item {
+                var isGuideExpanded by remember { mutableStateOf(false) }
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = ThemeDarkGray),
+                    border = BorderStroke(1.dp, if (isGuideExpanded) NeonCyan else TechGray.copy(alpha = 0.3f)),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .clickable { isGuideExpanded = !isGuideExpanded }
+                            .padding(16.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "💡",
+                                    fontSize = 16.sp,
+                                    modifier = Modifier.padding(end = 8.dp)
+                                )
+                                Text(
+                                    text = "PANDUAN SOLUSI BANK & WA REAL",
+                                    color = if (isGuideExpanded) NeonCyan else TechWhite,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    letterSpacing = 0.5.sp
+                                )
+                            }
+                            Text(
+                                text = if (isGuideExpanded) "[ TUTUP ]" else "[ BUKA ]",
+                                color = if (isGuideExpanded) NeonCyan else TechGray,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+
+                        AnimatedVisibility(
+                            visible = isGuideExpanded,
+                            enter = expandVertically() + fadeIn(),
+                            exit = shrinkVertically() + fadeOut()
+                        ) {
+                            Column(modifier = Modifier.padding(top = 14.dp)) {
+                                Divider(color = ThemeLightGray, modifier = Modifier.padding(bottom = 12.dp))
+                                
+                                // Solusi Bank
+                                Text(
+                                    text = "🏦 1. Mengatasi Aplikasi Bank yang Memblokir Aksesibilitas:",
+                                    color = NeonGreen,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    modifier = Modifier.padding(bottom = 6.dp)
+                                )
+                                Text(
+                                    text = "Beberapa m-banking (seperti Livin' Mandiri, BCA, OVO, dll) mendeteksi 'Accessibility Service' aktif sebagai risiko keamanan dan memblokir aplikasi mereka.\n\n" +
+                                            "💡 SOLUSI AMAN & PRAKTIS:\n" +
+                                            "• Silakan NONAKTIFKAN layanan 'Accessibility' untuk aplikasi ini melalui Pengaturan HP Anda.\n" +
+                                            "• Cukup AKTIFKAN layanan 'Notification Listener' (Akses Notifikasi/NTF) saja.\n" +
+                                            "• Akses Notifikasi *tidak terikat* dengan sistem Aksesibilitas, sehingga aplikasi m-banking tidak akan mendeteksi atau memblokir HP Anda sama sekali! Aplikasi kita akan tetap menangkap nominal transfer, bayar, dll dari notifikasi yang muncul di HP Anda secara 100% aman dan lancar.",
+                                    color = TechGray,
+                                    fontSize = 11.sp,
+                                    lineHeight = 16.sp,
+                                    modifier = Modifier.padding(bottom = 14.dp)
+                                )
+
+                                // Real WhatsApp integration
+                                Text(
+                                    text = "💬 2. Menghubungkan ke WhatsApp Asli Anda (Bukan Simulasi):",
+                                    color = NeonPurple,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    modifier = Modifier.padding(bottom = 6.dp)
+                                )
+                                Text(
+                                    text = "Jika Anda ingin dialog keuangan proaktif dan rincian transaksi dikonfirmasi di WhatsApp pribadi Anda secara nyata:\n\n" +
+                                            "Langkah-Langkah Setup:\n" +
+                                            "1. Buka Pengaturan (ikon ⚙ di kanan atas layar).\n" +
+                                            "2. Masukkan URL Vercel hasil deploy Anda (Contoh: `https://...vercel.app`) lalu ketuk Simpan.\n" +
+                                            "3. MATIKAN sakelar 'Sandbox AI Mode' agar HP memforward data asli ke server Vercel Anda.\n" +
+                                            "4. Atur Environment Variables di Dashboard Vercel Anda:\n" +
+                                            "   • `GEMINI_API_KEY` = Kunci API Gemini Anda dari Google AI Studio\n" +
+                                            "   • `SIDOBE_API_KEY` = API Key Anda dari dashboard SIDOBE.com\n" +
+                                            "   • `SIDOBE_SENDER` = Nomor pengirim terdaftar di server SIDOBE\n" +
+                                            "   • `SIDOBE_TARGET` = Nomor WhatsApp pribadi Anda (untuk menerima notifikasi & chat interaktif)\n" +
+                                            "5. Setup Webhook URL di dashboard SIDOBE Anda bagian Webhook menuju endpoint: `https://[Server-Vercel-Anda]/webhook/whatsapp`.\n\n" +
+                                            "✨ SELESAI! Kini seluruh dialog keuangan interaktif, tombol konfirmasi, dan chat balasan verbal akan berjalan otomatis dan langsung di WhatsApp riil Anda!",
+                                    color = TechGray,
+                                    fontSize = 11.sp,
+                                    lineHeight = 16.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             // Skenario B: Indikator Sensor Aktivitas Background murni
             item {
                 Card(
