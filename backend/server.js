@@ -394,25 +394,35 @@ app.post('/webhook/android-agent', async (req, res) => {
     const rawText = data.text;
     if (!rawText) return res.status(400).json({ error: "Missing text data" });
 
-    // FILTER KHUSUS: Hindari infinite loop dari notifikasi WhatsApp
-    const lowercaseText = rawText.toLowerCase();
-    if (lowercaseText.includes('[com.whatsapp]') || lowercaseText.includes('[whatsapp]') || lowercaseText.includes('[com.whatsapp.w4b]')) {
-      logAgent(`Mengabaikan notifikasi WhatsApp (Mencegah Infinite Loop / Spam)`);
+    // EKSTRAK PACKAGE NAME dari format "[package.name] ..." atau "[package.name Screen] ..."
+    const pkgMatch = rawText.match(/^\[(.*?)\]/);
+    let packageName = pkgMatch ? pkgMatch[1].toLowerCase() : "";
+
+    // 1. BLOKIR WHATSAPP & APLIKASI PESAN LAINNYA
+    // Sangat kritikal untuk mencegah infinite loop karena Agent mengirim notif WA ke user
+    if (packageName.includes('whatsapp') || packageName.includes('w4b') || packageName.includes('telegram')) {
+      logAgent(`Mengabaikan notifikasi WhatsApp/Chat (Mencegah Infinite Loop / Spam)`);
       return res.json({ status: "ignored", reason: "Blocked WhatsApp to prevent loop" });
     }
 
-    // WHITELIST: Hanya izinkan aplikasi pencatat keuangan, bank & wallet
-    const allowedKeywords = ['dana', 'gopay', 'gojek', 'ovo', 'shopeepay', 'linkaja', 'bca', 'livin', 'mandiri', 'brimo', 'bni', 'jenius', 'jago', 'seabank', 'tokopedia', 'bukalapak', 'grab'];
-    let isAllowed = false;
-    for (const kw of allowedKeywords) {
-        if (lowercaseText.includes(`[${kw}`) || lowercaseText.includes(kw)) {
-            isAllowed = true;
-            break;
-        }
-    }
+    // 2. WHITELIST APLIKASI KEUANGAN (Khusus aplikasi Bank, E-Wallet, dan Ecommerce)
+    const allowedApps = ['dana', 'gopay', 'gojek', 'ovo', 'shopee', 'linkaja', 'bca', 'livin', 'mandiri', 'brimo', 'bni', 'bsi', 'jenius', 'jago', 'seabank', 'tokopedia', 'bukalapak', 'grab'];
     
+    let isAllowed = false;
+    if (packageName) {
+        for (const app of allowedApps) {
+            if (packageName.includes(app)) {
+                isAllowed = true;
+                break;
+            }
+        }
+    } else {
+        // Jika format tidak memakai prefix package name, kita izinkan (mungkin dari postman atau tes manual)
+        isAllowed = true; 
+    }
+
     if (!isAllowed) {
-        logAgent(`Mengabaikan notifikasi dari aplikasi non-keuangan: "${rawText.substring(0, 30)}..."`);
+        logAgent(`Mengabaikan notifikasi dari aplikasi non-keuangan: Package [${packageName}]`);
         return res.json({ status: "ignored", reason: "Not a recognized financial application" });
     }
 
