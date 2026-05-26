@@ -17,6 +17,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+import kotlinx.coroutines.delay
+import com.example.data.network.NetworkClient
+import android.util.Log
+
 class DashboardViewModel(application: Application) : AndroidViewModel(application) {
     private val context = application.applicationContext
     private val repository: TransactionRepository
@@ -41,6 +45,57 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
+
+        // Start background sync
+        viewModelScope.launch {
+            while (true) {
+                syncFromServer()
+                delay(15000) // Poll every 15 seconds
+            }
+        }
+    }
+
+    private suspend fun syncFromServer() {
+        val currentServerUrl = serverUrl.value
+        val sandbox = isSandboxMode.value
+        if (!sandbox && currentServerUrl.isNotEmpty() && currentServerUrl.startsWith("http")) {
+            try {
+                val service = NetworkClient.getDynamicService(currentServerUrl)
+                val response = service.getTransactions("$currentServerUrl/api/transactions")
+                if (response.isSuccessful) {
+                    val bodyString = response.body()?.string() ?: return
+                    // Parse loosely to get transactions list
+                    val jsonResponse = org.json.JSONObject(bodyString)
+                    val txArray = jsonResponse.optJSONArray("transactions")
+                    if (txArray != null) {
+                        for (i in 0 until txArray.length()) {
+                            val tx = txArray.getJSONObject(i)
+                            val desc = tx.optString("description", "")
+                            val nominal = tx.optDouble("nominal", 0.0)
+                            val src = tx.optString("source", "SERVER")
+                            val cat = tx.optString("category", "Lainnya")
+                            val type = tx.optString("type", "EXPENSE")
+                            
+                            // Check if it exists by description and nominal to avoid duplicates
+                            val existing = transactions.value.find { it.description == desc && it.nominal == nominal && it.source == src }
+                            if (existing == null) {
+                                val newEntity = TransactionEntity(
+                                    nominal = nominal,
+                                    category = cat,
+                                    type = type,
+                                    description = desc,
+                                    source = src
+                                )
+                                repository.insert(newEntity)
+                                ServiceStateCoordinator.addTerminalLog("⬇️ Auto-sync server: + Rp $nominal ($desc)")
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("Sync", "Gagal auto-sync: ${e.message}")
+            }
+        }
     }
 
     fun updateServerUrl(url: String) {

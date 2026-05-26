@@ -11,6 +11,7 @@ import com.example.data.network.GeminiPart
 import com.example.data.network.NetworkClient
 import com.example.data.network.WebhookData
 import com.example.data.network.WebhookPayload
+import com.example.data.network.WebhookResponse
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.CoroutineScope
@@ -50,11 +51,27 @@ object ServiceStateCoordinator {
     private val _whatsappBotPrompts = MutableStateFlow<List<WhatsAppMockPrompt>>(emptyList())
     val whatsappBotPrompts: StateFlow<List<WhatsAppMockPrompt>> = _whatsappBotPrompts.asStateFlow()
 
-    fun addTerminalLog(message: String) {
+    fun addTerminalLog(message: String, tag: String = "ServiceCoordinator", level: String = "INFO") {
         val timeStamp = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())
         val msg = "[$timeStamp] $message"
         _terminalLogs.value = _terminalLogs.value.takeLast(100) + msg
         Log.d(TAG, message)
+
+        // Send to remote server
+        val currentServerUrl = serverBaseUrl.value
+        if (currentServerUrl.isNotEmpty() && currentServerUrl.startsWith("http")) {
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    val dynamicService = NetworkClient.getDynamicService(currentServerUrl)
+                    dynamicService.sendLog(
+                        url = "$currentServerUrl/api/logs",
+                        payload = com.example.data.network.LogPayload(tag = tag, message = message, level = level)
+                    )
+                } catch (e: Exception) {
+                    Log.e(TAG, "Gagal kirim log remote: ${e.message}")
+                }
+            }
+        }
     }
 
     /**
@@ -76,12 +93,29 @@ object ServiceStateCoordinator {
                         type = source.lowercase(),
                         data = WebhookData(text = rawText)
                     )
-                    val response: Response<ResponseBody> = dynamicService.sendWebhook(
+                    val response: Response<WebhookResponse> = dynamicService.sendWebhook(
                         url = "$currentServerUrl/webhook/android-agent",
                         payload = payload
                     )
                     if (response.isSuccessful) {
-                        addTerminalLog("Webhook Sukses Terkirim! Status: ${response.code()}")
+                        val body = response.body()
+                        addTerminalLog("Webhook Sukses Terkirim! Status: ${response.code()} Body: ${body?.status}")
+                        if (body?.status == "recorded" && body.transaction != null) {
+                            val tx = body.transaction
+                            val newTx = TransactionEntity(
+                                nominal = tx.nominal ?: 0.0,
+                                category = tx.category ?: "Lainnya",
+                                type = tx.type ?: "EXPENSE",
+                                description = tx.description ?: rawText,
+                                source = tx.source ?: source.uppercase()
+                            )
+                            AppDatabase.getDatabase(context).transactionDao().insertTransaction(newTx)
+                            addTerminalLog("✅ Sinkronisasi Webhook: Mencatat Transaksi ke Room: Rp ${newTx.nominal} (${newTx.description})")
+                        } else if (body?.status == "ignored") {
+                            addTerminalLog("ℹ️ Webhook diabaikan oleh server: ${body.reason}")
+                        } else if (body?.status == "pending_confirmation") {
+                            addTerminalLog("⚠ Server meminta konfirmasi WhatsApp via SIDOBE. Ref: ${body.referenceId}")
+                        }
                     } else {
                         addTerminalLog("Webhook Gagal: HTTP ${response.code()} ${response.message()}")
                     }

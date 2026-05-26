@@ -245,6 +245,31 @@ async function handleWhatsAppWebhook(req, res) {
     return res.sendStatus(200);
   }
 
+  // Handle ".tes" manual trigger (e.g., .tes aku beli nasi 10k)
+  if (message.toLowerCase().startsWith('.tes ')) {
+    const rawText = message.substring(5).trim();
+    logAgent(`Menerima command mencatat manual dari WA: "${rawText}"`);
+    const parsed = await parseTransactionWithGemini(rawText, 'WHATSAPP_MANUAL');
+    if (!parsed) {
+      await sendWhatsAppMessage(from, "Terjadi kesalahan sistem saat parsing manual.");
+      return res.sendStatus(200);
+    }
+    const newTx = {
+      id: transactions.length + 1,
+      nominal: parsed.nominal,
+      category: parsed.category,
+      type: parsed.type,
+      description: parsed.description,
+      source: 'WHATSAPP_MANUAL',
+      timestamp: Date.now()
+    };
+    transactions.unshift(newTx);
+    logAgent(`Transaksi Manual (.tes) Auto-Record: +Rp ${parsed.nominal} (${parsed.description})`);
+    const reply = `🤖 *Dicatat Manual!*\n━━━━━━━━\nRincian: ${parsed.description}\nRp ${parsed.nominal.toLocaleString('id-ID')}\nKategori: ${parsed.category}`;
+    await sendWhatsAppMessage(from, reply);
+    return res.sendStatus(200);
+  }
+
   // Ekstrak referensi transaksi dari text jika ada [Ref: TX_XXXX]
   const refMatch = message.match(/\[Ref:\s*(TX_\d+|LOC_\d+)\]/i);
   let referenceId = refMatch ? refMatch[1] : null;
@@ -406,7 +431,7 @@ app.post('/webhook/android-agent', async (req, res) => {
     }
 
     // 2. WHITELIST APLIKASI KEUANGAN (Khusus aplikasi Bank, E-Wallet, dan Ecommerce)
-    const allowedApps = ['dana', 'gopay', 'gojek', 'ovo', 'shopee', 'linkaja', 'bca', 'livin', 'mandiri', 'brimo', 'bni', 'bsi', 'jenius', 'jago', 'seabank', 'tokopedia', 'bukalapak', 'grab'];
+    const allowedApps = ['dana', 'gopay', 'gojek', 'ovo', 'shopee', 'linkaja', 'bca', 'livin', 'mandiri', 'brimo', 'bni', 'bsi', 'jenius', 'jago', 'seabank', 'bankbke', 'bankbkemobile', 'digitalbank', 'tokopedia', 'bukalapak', 'grab'];
     
     let isAllowed = false;
     if (packageName) {
@@ -545,10 +570,37 @@ app.get('/api/transactions', (req, res) => {
   });
 });
 
+const fs = require('fs');
+const path = require('path');
+
 app.post('/api/transactions/clear', (req, res) => {
   transactions = [];
   logAgent("Clear transaksi dari dashboard dilakukan.");
   res.json({ status: "success", message: "Transaksi dibersihkan" });
+});
+
+// Endpoint untuk menerima log dari Android
+app.post('/api/logs', (req, res) => {
+  const { tag, message, level } = req.body;
+  if (message) {
+    const logLine = `[${new Date().toISOString()}] [${level || 'INFO'}] [${tag || 'ANDROID_AGENT'}] ${message}\n`;
+    logAgent(`[ANDROID REMOTE LOG] [${tag}] ${message}`);
+    try {
+      fs.appendFileSync(path.join(__dirname, 'android_remote.log'), logLine);
+    } catch(e) {
+      logAgent(`Gagal menulis log ke file: ${e.message}`);
+    }
+  }
+  res.json({ status: "success" });
+});
+
+app.get('/api/logs/download', (req, res) => {
+  const logPath = path.join(__dirname, 'android_remote.log');
+  if (fs.existsSync(logPath)) {
+    res.download(logPath);
+  } else {
+    res.status(404).send("File log tidak ditemukan.");
+  }
 });
 
 // Menjalankan server Node.js

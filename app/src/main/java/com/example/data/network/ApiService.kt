@@ -72,12 +72,43 @@ data class GeminiCandidate(
 
 // --- RETROFIT INTERFACES ---
 
+@JsonClass(generateAdapter = true)
+data class WebhookResponse(
+    val status: String? = null,
+    val reason: String? = null,
+    val transaction: TransactionPayload? = null,
+    val referenceId: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class TransactionPayload(
+    val nominal: Double? = 0.0,
+    val category: String? = "Lainnya",
+    val type: String? = "EXPENSE",
+    val description: String? = "",
+    val source: String? = ""
+)
+
+@JsonClass(generateAdapter = true)
+data class LogPayload(
+    val tag: String,
+    val message: String,
+    val level: String = "INFO"
+)
+
 interface ApiService {
     // 1. Direct Webhook Sender (supports dynamic URLs)
     @POST
     suspend fun sendWebhook(
         @Url url: String,
         @Body payload: WebhookPayload
+    ): Response<WebhookResponse>
+
+    // 1b. Remote Logging
+    @POST
+    suspend fun sendLog(
+        @Url url: String,
+        @Body payload: LogPayload
     ): Response<ResponseBody>
 
     // 2. Fetch Transactions from Node.js backend
