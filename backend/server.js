@@ -394,6 +394,28 @@ app.post('/webhook/android-agent', async (req, res) => {
     const rawText = data.text;
     if (!rawText) return res.status(400).json({ error: "Missing text data" });
 
+    // FILTER KHUSUS: Hindari infinite loop dari notifikasi WhatsApp
+    const lowercaseText = rawText.toLowerCase();
+    if (lowercaseText.includes('[com.whatsapp]') || lowercaseText.includes('[whatsapp]') || lowercaseText.includes('[com.whatsapp.w4b]')) {
+      logAgent(`Mengabaikan notifikasi WhatsApp (Mencegah Infinite Loop / Spam)`);
+      return res.json({ status: "ignored", reason: "Blocked WhatsApp to prevent loop" });
+    }
+
+    // WHITELIST: Hanya izinkan aplikasi pencatat keuangan, bank & wallet
+    const allowedKeywords = ['dana', 'gopay', 'gojek', 'ovo', 'shopeepay', 'linkaja', 'bca', 'livin', 'mandiri', 'brimo', 'bni', 'jenius', 'jago', 'seabank', 'tokopedia', 'bukalapak', 'grab'];
+    let isAllowed = false;
+    for (const kw of allowedKeywords) {
+        if (lowercaseText.includes(`[${kw}`) || lowercaseText.includes(kw)) {
+            isAllowed = true;
+            break;
+        }
+    }
+    
+    if (!isAllowed) {
+        logAgent(`Mengabaikan notifikasi dari aplikasi non-keuangan: "${rawText.substring(0, 30)}..."`);
+        return res.json({ status: "ignored", reason: "Not a recognized financial application" });
+    }
+
     logAgent(`Memproses teks mentah [${normalizedType}]: "${rawText.substring(0, 50)}..."`);
     const parsed = await parseTransactionWithGemini(rawText, normalizedType.toUpperCase());
 
