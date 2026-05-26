@@ -15,7 +15,7 @@ app.use(express.urlencoded({ extended: true }));
 
 const PORT = process.env.PORT || 3000;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const SIDOBE_API_KEY = process.env.SIDOBE_API_KEY;
+const SIDOBE_API_KEY = process.env.WA_API_KEY || process.env.SIDOBE_API_KEY;
 const SIDOBE_SENDER_NUMBER = process.env.SIDOBE_SENDER; // No WhatsApp pengirim
 const SIDOBE_TARGET_NUMBER = process.env.SIDOBE_TARGET; // No WhatsApp user penerima
 
