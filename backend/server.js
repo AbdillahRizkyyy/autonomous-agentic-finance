@@ -161,13 +161,18 @@ app.post('/webhook/android-agent', async (req, res) => {
     return res.status(400).json({ error: "Invalid payload format" });
   }
 
+  // Normalisasi bahasa: Dukung tipe bahasa Indonesia vs Inggris
+  let normalizedType = type.toLowerCase();
+  if (normalizedType === 'notifikasi') normalizedType = 'notification';
+  if (normalizedType === 'layar') normalizedType = 'screen';
+
   // Skenario A: Notifikasi atau Screen-scraping
-  if (type === 'notification' || type === 'screen') {
+  if (normalizedType === 'notification' || normalizedType === 'screen') {
     const rawText = data.text;
     if (!rawText) return res.status(400).json({ error: "Missing text data" });
 
-    logAgent(`Memproses teks mentah [${type}]: "${rawText.substring(0, 50)}..."`);
-    const parsed = await parseTransactionWithGemini(rawText, type.toUpperCase());
+    logAgent(`Memproses teks mentah [${normalizedType}]: "${rawText.substring(0, 50)}..."`);
+    const parsed = await parseTransactionWithGemini(rawText, normalizedType.toUpperCase());
 
     if (!parsed) {
       return res.status(500).json({ status: "error", message: "AI parsing failed" });
@@ -175,17 +180,17 @@ app.post('/webhook/android-agent', async (req, res) => {
 
     if (parsed.isAmbiguous) {
       // Skenario Ambigu: Tanyakan ke user via WhatsApp proaktif
-      logAgent(`Transaksi dari ${type} ambigu. Menanyakan klarifikasi ke user via WhatsApp.`);
+      logAgent(`Transaksi dari ${normalizedType} ambigu. Menanyakan klarifikasi ke user via WhatsApp.`);
       
       const referenceId = "TX_" + Date.now();
       pendingConfirmations[referenceId] = {
         rawText,
-        source: type.toUpperCase(),
+        source: normalizedType.toUpperCase(),
         parsedPreview: parsed,
         timestamp: Date.now()
       };
 
-      const questionPrompt = `Halo! Saya mendeteksi aktivitas keuangan dari ${type === 'notification' ? 'notifikasi' : 'layar'}:
+      const questionPrompt = `Halo! Saya mendeteksi aktivitas keuangan dari ${normalizedType === 'notification' ? 'notifikasi' : 'layar'}:
 "${rawText}"
 
 Sepertinya data ini kurang lengkap atau ambigu.
@@ -203,7 +208,7 @@ Balas *"Ya"* atau sebutkan detailnya (contoh: "Bukan, itu pengeluaran makan sian
         category: parsed.category,
         type: parsed.type,
         description: parsed.description,
-        source: type.toUpperCase(),
+        source: normalizedType.toUpperCase(),
         timestamp: timestamp || Date.now()
       };
       transactions.unshift(newTx);
@@ -215,7 +220,7 @@ Balas *"Ya"* atau sebutkan detailnya (contoh: "Bukan, itu pengeluaran makan sian
         `• Nominal: Rp ${parsed.nominal.toLocaleString('id-ID')}\n` +
         `• Kategori: ${parsed.category}\n` +
         `• Keterangan: ${parsed.description}\n` +
-        `• Sumber: ${type.toUpperCase()}`;
+        `• Sumber: ${normalizedType.toUpperCase()}`;
 
       await sendWhatsAppMessage(SIDOBE_TARGET_NUMBER || "USER_WA_NUMBER", notificationMsg);
       return res.json({ status: "recorded", transaction: newTx });
@@ -223,7 +228,7 @@ Balas *"Ya"* atau sebutkan detailnya (contoh: "Bukan, itu pengeluaran makan sian
   }
 
   // Skenario B: Geofencing & GPS Background (Mendeteksi Transaksi Tunai)
-  if (type === 'location') {
+  if (normalizedType === 'location') {
     const { lat, lon, address, durationMinutes } = data;
     logAgent(`User terdeteksi menetap di koordinat (${lat}, ${lon}) - ${address || "Lokasi Toko"} - selama ${durationMinutes} menit.`);
     
@@ -251,8 +256,16 @@ Balas dengan detail pengeluaran, contoh: "Ya, beli kopi tunai 25000" atau balas 
  * 3. WEBHOOK: Menerima Pesan Balasan User dari WhatsApp Gateway (SIDOBE API)
  */
 app.post('/webhook/whatsapp', async (req, res) => {
-  const { from, message } = req.body; // Sesuaikan dengan payload aktual SIDOBE
-  logAgent(`Menerima pesan WA dari ${from}: "${message}"`);
+  logAgent(`Menerima pesan WA Body: ${JSON.stringify(req.body)}`);
+
+  const from = req.body.from || req.body.sender || req.body.phone || (req.body.data && req.body.data.from) || (req.body.data && req.body.data.sender);
+  let message = req.body.message || req.body.msg || req.body.text || req.body.body || (req.body.data && req.body.data.message);
+
+  if (message && typeof message === 'object') {
+    message = message.text || message.body || JSON.stringify(message);
+  }
+
+  logAgent(`Menerima pesan WA ter-ekstrak: dari=[${from}], pesan=[${message}]`);
 
   if (!message) {
     return res.sendStatus(200);
