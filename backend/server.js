@@ -136,7 +136,7 @@ async function parseTransactionWithGemini(rawText, source) {
   }
 
   try {
-    const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = ai.getGenerativeModel({ model: "gemini-2.5-flash" });
     
     const prompt = `
     Anda adalah asisten keuangan pribadi cerdas bernama "Finance AI Agent".
@@ -179,7 +179,7 @@ async function sendWhatsAppMessage(to, message) {
     return false;
   }
   try {
-    const response = await axios.post("https://api.sidobe.com/v1/messages", {
+    const response = await axios.post("https://api.sidobe.com/wa/v1/messages", {
       sender: SIDOBE_SENDER_NUMBER,
       to: to,
       message: message
@@ -290,7 +290,7 @@ async function handleWhatsAppWebhook(req, res) {
         logAgent("⚠️ GEMINI_API_KEY belum dikonfigurasikan di Vercel. Menggunakan heuristic fallback untuk koreksi.");
       } else {
         try {
-          const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
+          const model = ai.getGenerativeModel({ model: "gemini-2.5-flash" });
           const result = await model.generateContent(correctionPrompt);
           const outputText = result.response.text().trim();
           corrected = JSON.parse(outputText.replace(/```json/g, '').replace(/```/g, ''));
